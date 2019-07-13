@@ -1,0 +1,53 @@
+scraper:
+  url: http://www.radioscanner.ru/base/index.php?fromCity=%D1%E0%EC%E0%F0%E0&page={page}
+
+generator:
+  page_footer: По данным портала radioscanner.ru
+  table_caption: Частоты с {start_freq} по {end_freq} МГц  # TODO: make bold
+  columns_on_page: 2
+
+  columns:
+    - name: freq_date
+      class: strong
+      width: 12%
+      primary_header: Частота
+      primary_attr: frequency
+      secondary_header: Дата набл.
+      secondary_attr: date
+
+    - name: mod_type
+      class: strong
+      width: 12%
+      primary_header: Мод-ция
+      primary_attr: modulation
+      secondary_header: Тип сигн.
+      secondary_attr: signal_type
+
+    - name: service
+      width: 15%
+      primary_header: Служба радиосв.
+      primary_attr: service_type
+
+    - name: affil
+      width: 20%
+      primary_header: Принад-ть
+      primary_attr: affiliation
+
+    - name: call-sign
+      width: 17%
+      primary_header: Позывной
+      primary_attr: call_sign
+      
+    - name: desc
+      primary_header: Описание
+      primary_attr: description
+
+  slices:
+    - 20
+    - 22
+    - 31
+    - 25
+    - 30
+    - 28
+    - 27
+    - remainder
