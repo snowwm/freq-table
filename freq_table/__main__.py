@@ -1,6 +1,6 @@
 import logging
 import os
-from argparse import ArgumentParser
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
 
 import yaml
 
@@ -9,6 +9,7 @@ from . import utils
 # TODO: write README
 # TODO: switch to OO style
 # TODO: auto make pdf
+# TODO: enable multiple templates
 # TODO: add record merging
 # TODO: add filters
 # TODO: add more output customization
@@ -20,6 +21,17 @@ DEFAULT_TEMPLATE = 'build/output.html.mako'
 DEFAULT_OUTPUT = 'build/output.html'
 DEFAULT_RECORDS = 'build/records.yaml'
 
+DESCRIPTION = """
+Make printable tables from http://radioscanner.ru frequency db.
+
+A *record* represents a frequency with associated information.
+Records are identified by URL. When gathering records from multiple
+sources, records with the same URl are overwritten by those processed later.
+
+Without arguments, the program tries to load records from the default file
+falling back to scraping if that's not present.
+"""
+
 logger = logging.getLogger(__name__)
 if os.getenv('LOGLEVEL'):
     level = getattr(logging, os.getenv('LOGLEVEL').upper())
@@ -27,31 +39,43 @@ if os.getenv('LOGLEVEL'):
 
 
 def parse_args():
-    parser = ArgumentParser(
-        prog='freq_table',
-        description='Make printable tables from radioscanner.ru frequency db.')
+    parser = ArgumentParser(prog='freq_table', description=DESCRIPTION,
+                            formatter_class=RawDescriptionHelpFormatter,
+                            epilog='Logs are controlled by the env var LOGLEVEL')
 
-    parser.add_argument('-s', '--scrape', action='store_true')
-    parser.add_argument('-u', '--update', action='store_true')
-    parser.add_argument('-n', '--no-gen', dest='gen_html',
-                        action='store_false')
-    parser.add_argument('-d', '--dump', nargs='?', const=DEFAULT_RECORDS,
-                        metavar='TO_FILE')
+    parser.add_argument('-s', '--scrape', action='store_true',
+                        help='download records from the web (before loading files)')
+
+    parser.add_argument('-u', '--update', action='store_true',
+                        help='scrape *after* loading files')
+
+    parser.add_argument('-n', '--no-gen', dest='gen_html', action='store_false',
+                        help='do not generate html output')
+
     parser.add_argument('-l', '--load', nargs='?', const=DEFAULT_RECORDS,
-                        action='append', metavar='FROM_FILE')
-    parser.add_argument('-o', '--output', default=DEFAULT_OUTPUT,
-                        metavar='OUT_FILE')
-    parser.add_argument('-c', '--config', default=DEFAULT_CONFIG,
-                        metavar='CONF_FILE')
-    parser.add_argument('-t', '--template', default=DEFAULT_TEMPLATE,
-                        metavar='TEMPLATE_FILE')
+                        action='append', metavar='FROM_FILE',
+                        help='load records from a file; repeat for multiple files'
+                        ' (just "-l" defaults to %(const)s)')
+
+    parser.add_argument('-d', '--dump', nargs='?', const=DEFAULT_RECORDS, metavar='TO_FILE',
+                        help='save all gathered records to a file'
+                        ' (just "-d" defaults to %(const)s)')
+
+    parser.add_argument('-c', '--config', default=DEFAULT_CONFIG, metavar='CONF_FILE',
+                        help='config file (default: %(default)s)')
+
+    parser.add_argument('-o', '--output', default=DEFAULT_OUTPUT, metavar='OUT_FILE',
+                        help='output file (default: %(default)s)')
+
+    parser.add_argument('-t', '--template', default=DEFAULT_TEMPLATE, metavar='TMPL_FILE',
+                        help='template file (default: %(default)s)')
 
     args = parser.parse_args()
 
     if args.update:
         args.scrape = True
 
-    if not args.load:
+    if not args.load and not args.scrape:
         if os.path.isfile(DEFAULT_RECORDS):
             args.load = (DEFAULT_RECORDS,)
             logger.warning('Using default records file.')
