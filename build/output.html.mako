@@ -27,7 +27,7 @@
         </caption>
         <thead>
             <tr>
-            % for col in columns:
+            % for col in table_columns:
                 <th class="${col.get('class', '')}" style="width: ${col.get('width', 'initial')};">
                     <p class="primary">
                         ${col['primary_header']}

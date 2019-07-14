@@ -6,40 +6,34 @@ generator:
   table_caption: Частоты с {start_freq} по {end_freq} МГц  # TODO: make bold
   columns_on_page: 2
 
-  columns:
-    - name: freq_date
-      class: strong
-      width: 12%
-      primary_header: Частота
+  table_columns:
+    - primary_header: Частота
       primary_attr: frequency
       secondary_header: Дата набл.
       secondary_attr: date
-
-    - name: mod_type
       class: strong
       width: 12%
-      primary_header: Мод-ция
+
+    - primary_header: Мод-ция
       primary_attr: modulation
       secondary_header: Тип сигн.
       secondary_attr: signal_type
+      class: strong
+      width: 12%
 
-    - name: service
-      width: 15%
-      primary_header: Служба радиосв.
+    - primary_header: Служба радиосв.
       primary_attr: service_type
+      width: 15%
 
-    - name: affil
-      width: 20%
-      primary_header: Принад-ть
+    - primary_header: Принад-ть
       primary_attr: affiliation
+      width: 20%
 
-    - name: call-sign
-      width: 17%
-      primary_header: Позывной
+    - primary_header: Позывной
       primary_attr: call_sign
+      width: 17%
       
-    - name: desc
-      primary_header: Описание
+    - primary_header: Описание
       primary_attr: description
 
   slices:
