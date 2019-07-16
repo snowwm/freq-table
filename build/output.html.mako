@@ -45,7 +45,7 @@
         <tbody>
         % for row in slice:
             <tr>
-            % for col in columns:
+            % for col in table_columns:
                 <td class="${col.get('class', '')}">
                     <p class="primary">
                         ${row[col['primary_attr']] | h}

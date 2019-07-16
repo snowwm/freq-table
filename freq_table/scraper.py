@@ -19,48 +19,49 @@ ROW_TITLES = (
     ('description', 'Описание'),
 )
 
-config = utils.get_config('scraper')
 logger = logging.getLogger(__name__)
 
 
-def get_records():
-    for page in itertools.count():
-        logger.info('Fetching page %i', page)
-        r = requests.get(config['url'].format(page=page))
-        yield from get_records_from_page(r.text)
+class Scraper:
+    def __init__(self, config):
+        self.config = config
 
-        # dirty hack to determine the last page
-        if '">&gt;&gt;' not in r.text:
-            return
+    def get_records(self):
+        for page in itertools.count():
+            logger.info('Fetching page %i', page)
+            r = requests.get(self.config['url'].format(page=page))
+            yield from self.get_records_from_page(r.text)
 
+            # dirty hack to determine the last page
+            if '">&gt;&gt;' not in r.text:
+                return
 
-def get_records_from_page(text):
-    soup = BeautifulSoup(text, features="html.parser")
-    for row in soup.find_all('tr', class_=['tbCel1', 'tbCel2']):
-        href = row.find('a')['href']
+    def get_records_from_page(self, text):
+        soup = BeautifulSoup(text, features="html.parser")
+        for row in soup.find_all('tr', class_=['tbCel1', 'tbCel2']):
+            href = row.find('a')['href']
 
-        logger.info('Fetching record %s', href)
-        r = requests.get(href)
-        rec = parse_record(r.text)
+            logger.info('Fetching record %s', href)
+            r = requests.get(href)
+            rec = self.parse_record(r.text)
 
-        rec['url'] = href
-        yield rec
+            rec['url'] = href
+            yield rec
 
+    def parse_record(self, text):
+        soup = BeautifulSoup(text, features="html.parser").find('body')
+        record = {}
 
-def parse_record(text):
-    soup = BeautifulSoup(text, features="html.parser").find('body')
-    record = {}
+        for name, title in ROW_TITLES:
+            soup = soup.find_next(string=re.compile(title)).find_next('td')
+            value = soup.get_text(separator='\n', strip=True)
 
-    for name, title in ROW_TITLES:
-        soup = soup.find_next(string=re.compile(title)).find_next('td')
-        value = soup.get_text(separator='\n', strip=True)
+            if name == 'frequency':
+                value = value.partition(' ')[0]  # drop the unit
+            elif name == 'date':
+                value = utils.parse_date(value)
 
-        if name == 'frequency':
-            value = value.partition(' ')[0]  # drop the unit
-        elif name == 'date':
-            value = utils.parse_date(value)
+            record[name] = value
 
-        record[name] = value
-
-    logger.debug('Parsed record: %s', record)
-    return record
+        logger.debug('Parsed record: %s', record)
+        return record

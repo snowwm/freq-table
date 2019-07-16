@@ -1,7 +1,6 @@
 import re
 from datetime import date
 
-import yaml
 from pyphen import Pyphen
 
 HYPHEN = '\u00ad'  # soft hyphen (&shy;)
@@ -23,11 +22,6 @@ MONTHS_BY_NAME = {
 }
 
 pyphen = Pyphen(lang='ru_RU')
-config = None  # set by main
-
-
-def get_config(name):
-    return config[name]
 
 
 def parse_date(date_str):
