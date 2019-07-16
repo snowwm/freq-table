@@ -4,7 +4,6 @@ import os
 from .cli import Cli
 
 # TODO: auto make pdf
-# TODO: enable multiple templates
 # TODO: add record merging
 # TODO: add filters
 # TODO: add more output customization

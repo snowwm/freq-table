@@ -8,20 +8,25 @@ from .generator import Generator
 from .records import RecordStore
 from .scraper import Scraper
 
-DEFAULT_CONFIG = 'build/config.yaml'
-DEFAULT_TEMPLATE = 'build/output.html.mako'
-DEFAULT_OUTPUT = 'build/output.html'
-DEFAULT_RECORDS = 'build/records.yaml'
+CONFIG_FILE = 'config.yaml'
+TEMPLATE_FILE = 'output.html.mako'
+DEFAULT_OUTPUT = 'output.html'
+DEFAULT_RECORDS = 'records.yaml'
+DEFAULT_BUILD = 'build/'
 
 DESCRIPTION = """
 Make printable tables from http://radioscanner.ru frequency db.
 
 A *record* represents a frequency with associated information.
 Records are identified by URL. When gathering records from multiple
-sources, records with the same URl are overwritten by those processed later.
+sources, records with the same URL are overwritten by those processed later.
 
-Without arguments, the program tries to load records from the default file
+With no record sources provided, the program tries to load the default file
 falling back to scraping if that's not present.
+
+The default build directory is `build/`. The program reads the following files:
+  `config.yaml`      - configuration file
+  `output.html.mako` - template for generated html
 """
 
 logger = logging.getLogger(__name__)
@@ -59,16 +64,13 @@ class Cli:
             ' (just "-d" defaults to %(const)s)')
 
         parser.add_argument(
-            '-c', '--config', default=DEFAULT_CONFIG, metavar='CONF_FILE',
-            help='config file (default: %(default)s)')
-
-        parser.add_argument(
             '-o', '--output', default=DEFAULT_OUTPUT, metavar='OUT_FILE',
             help='output file (default: %(default)s)')
 
         parser.add_argument(
-            '-t', '--template', default=DEFAULT_TEMPLATE, metavar='TMPL_FILE',
-            help='template file (default: %(default)s)')
+            '-b', '--build-dir', default=DEFAULT_BUILD, metavar='BUILD_DIR',
+            help='all file paths are resolved relative to this directory'
+            ' (default: %(default)s)')
 
     def parse_args(self, args=None):
         args = self.args = self.parser.parse_args(args)
@@ -77,7 +79,7 @@ class Cli:
             args.scrape = True
 
         if not args.load and not args.scrape:
-            if os.path.isfile(DEFAULT_RECORDS):
+            if os.path.isfile(self.get_path(DEFAULT_RECORDS)):
                 args.load = (DEFAULT_RECORDS,)
                 logger.warning('Using default records file.')
             else:
@@ -115,8 +117,14 @@ class Cli:
 
         logger.warning('Done.')
 
+    def get_path(self, path):
+        return os.path.join(self.args.build_dir, path)
+
+    def open_file(self, path, *args, **kwargs):
+        return open(self.get_path(path), *args, **kwargs)
+
     def load_config(self):
-        with open(self.args.config) as fh:
+        with self.open_file(CONFIG_FILE) as fh:
             logger.warning('Loading config from %s...', fh.name)
             self.config = yaml.safe_load(fh)
 
@@ -135,20 +143,20 @@ class Cli:
 
     def load_files(self):
         for file in self.args.load:
-            with open(file) as fh:
+            with self.open_file(file) as fh:
                 self.add_records(yaml.safe_load(fh), from_=fh.name)
 
     def dump_records(self, records):
-        with open(self.args.dump, 'w') as fh:
+        with self.open_file(self.args.dump, 'w') as fh:
             logger.warning('Writing records to %s...', fh.name)
             yaml.safe_dump(records, fh, allow_unicode=True)
 
     def gen_html(self, records):
-        with open(self.args.template) as fh:
+        with self.open_file(TEMPLATE_FILE) as fh:
             logger.warning('Reading template from %s...', fh.name)
             tmpl = fh.read()
 
-        with open(self.args.output, 'w') as fh:
+        with self.open_file(self.args.output, 'w') as fh:
             logger.warning('Generating html at %s...', fh.name)
             generator = Generator(self.config['generator'])
             html = generator.generate_html(tmpl, records)
