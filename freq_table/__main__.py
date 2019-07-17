@@ -9,6 +9,7 @@ from .cli import Cli
 # TODO: add more output customization
 # TODO: improve page layout (a tricky task)
 # TODO: inline css?
+# TODO: publish a package?
 
 if __name__ == '__main__':
     if os.getenv('LOGLEVEL'):
