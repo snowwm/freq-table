@@ -121,7 +121,7 @@ class Cli:
         return os.path.join(self.args.build_dir, path)
 
     def open_file(self, path, *args, **kwargs):
-        return open(self.get_path(path), *args, **kwargs)
+        return open(self.get_path(path), *args, **kwargs, encoding='utf-8')
 
     def load_config(self):
         with self.open_file(CONFIG_FILE) as fh:
