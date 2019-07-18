@@ -2,8 +2,10 @@ import logging
 import os
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 
+import pkg_resources
 import yaml
 
+from . import __version__
 from .generator import Generator
 from .records import RecordStore
 from .scraper import Scraper
@@ -12,21 +14,13 @@ CONFIG_FILE = 'config.yaml'
 TEMPLATE_FILE = 'output.html.mako'
 DEFAULT_OUTPUT = 'output.html'
 DEFAULT_RECORDS = 'records.yaml'
-DEFAULT_BUILD = 'build/'
+DEFAULT_BUILD = ''
 
 DESCRIPTION = """
 Make printable tables from http://radioscanner.ru frequency db.
 
-A *record* represents a frequency with associated information.
-Records are identified by URL. When gathering records from multiple
-sources, records with the same URL are overwritten by those processed later.
-
 With no record sources provided, the program tries to load the default file
-falling back to scraping if that's not present.
-
-The default build directory is `build/`. The program reads the following files:
-  `config.yaml`      - configuration file
-  `output.html.mako` - template for generated html
+(`records.yaml`) falling back to scraping if that's not present.
 """
 
 logger = logging.getLogger(__name__)
@@ -38,7 +32,14 @@ class Cli:
         parser = self.parser = ArgumentParser(
             prog='freq_table', description=DESCRIPTION,
             formatter_class=RawDescriptionHelpFormatter,
-            epilog='Logs are controlled by the env var LOGLEVEL')
+            epilog='Logs are controlled by the env variable LOGLEVEL')
+
+        parser.add_argument(
+            '-V', '--version', action='version', version=f'%(prog)s {__version__}')
+
+        parser.add_argument(
+            '-i', '--init', action='store_true',
+            help='initialize files in the build directory')
 
         parser.add_argument(
             '-s', '--scrape', action='store_true',
@@ -69,8 +70,9 @@ class Cli:
 
         parser.add_argument(
             '-b', '--build-dir', default=DEFAULT_BUILD, metavar='BUILD_DIR',
-            help='all file paths are resolved relative to this directory'
-            ' (default: %(default)s)')
+            help='directory containing config and template files;'
+            ' all file paths are resolved relative to this directory'
+            ' (defaults to the current working directory)')
 
     def parse_args(self, args=None):
         args = self.args = self.parser.parse_args(args)
@@ -87,6 +89,10 @@ class Cli:
                 logger.warning('No records file found, will scrape the web.')
 
     def main(self):
+        if self.args.init:
+            self.init()
+            return
+
         self.load_config()
 
         if self.args.scrape and not self.args.update:
@@ -120,11 +126,35 @@ class Cli:
     def get_path(self, path):
         return os.path.join(self.args.build_dir, path)
 
-    def open_file(self, path, *args, **kwargs):
-        return open(self.get_path(path), *args, **kwargs, encoding='utf-8')
+    def open_file(self, path, *args, tmpl=False, **kwargs):
+        try:
+            return open(self.get_path(path), *args, **kwargs, encoding='utf-8')
+        except OSError as e:
+            msg = '\nLooks like one of the necessary build files is missing!'\
+                  '\nTry running `freq_table --init` first'
+            self.parser.error(f'{e}{msg if tmpl else ""}')
+
+    def copy_template(self, name):
+        if os.path.isfile(self.get_path(name)):
+            logger.warning('File %s already exists, keeping it', name)
+            return False
+
+        res = pkg_resources.resource_string(__name__, f'templates/{name}')
+        with self.open_file(name, 'w') as fh:
+            logger.warning('Copying %s', name)
+            fh.write(res.decode('utf-8'))
+        return True
+
+    def init(self):
+        logger.warning('Initializing templates...')
+
+        self.copy_template('config.yaml')
+
+        if self.copy_template('output.html.mako'):
+            self.copy_template('style.css')
 
     def load_config(self):
-        with self.open_file(CONFIG_FILE) as fh:
+        with self.open_file(CONFIG_FILE, tmpl=True) as fh:
             logger.warning('Loading config from %s...', fh.name)
             self.config = yaml.safe_load(fh)
 
@@ -152,7 +182,7 @@ class Cli:
             yaml.safe_dump(records, fh, allow_unicode=True)
 
     def gen_html(self, records):
-        with self.open_file(TEMPLATE_FILE) as fh:
+        with self.open_file(TEMPLATE_FILE, tmpl=True) as fh:
             logger.warning('Reading template from %s...', fh.name)
             tmpl = fh.read()
 

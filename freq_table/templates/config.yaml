@@ -1,9 +1,10 @@
 scraper:
+  # В данный момент выбраны все записи по городу Самаре
   url: http://www.radioscanner.ru/base/index.php?fromCity=%D1%E0%EC%E0%F0%E0&page={page}
 
 generator:
   page_footer: По данным портала radioscanner.ru
-  table_caption: Частоты с {start_freq} по {end_freq} МГц  # TODO: make bold
+  table_caption: Частоты с {start_freq} по {end_freq} МГц
   columns_on_page: 2
 
   table_columns:

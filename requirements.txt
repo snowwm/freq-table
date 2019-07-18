@@ -1,5 +1,0 @@
-beautifulsoup4
-mako
-pyphen
-pyyaml
-requests
