@@ -14,6 +14,9 @@ logger = logging.getLogger(__name__)
 class RecordSlice(list):
     def __init__(self, records, config):
         super().__init__(records)
+        if len(self) == 0:
+            return
+
         self.start_freq = self[0]['frequency']
         self.end_freq = self[-1]['frequency']
         self.caption = config['table_caption'].format(start_freq=self.start_freq,
@@ -41,7 +44,10 @@ class Generator:
     def preprocess_record(self, r):
         logger.info('Processing record %s', r['url'])
 
-        r['date'] = r['date'].strftime('%d.%m.%Y')
+        if 'date' in r:
+            r['date'] = r['date'].strftime('%d.%m.%Y')
+        else:
+            r['date'] = MISSING
 
         for f in TEXT_FIELDS:
             text = r.get(f) or MISSING

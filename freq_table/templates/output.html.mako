@@ -53,11 +53,11 @@
             % for col in table_columns:
                 <td class="${col.get('class', '')}">
                     <p class="primary">
-                        ${row[col['primary_attr']] | h}
+                        ${row.get(col['primary_attr'], '-') | h}
                     </p>
                     % if 'secondary_attr' in col:
                         <p class="secondary">
-                            ${row[col['secondary_attr']] | h}
+                            ${row.get(col['secondary_attr'], '-') | h}
                         </p>
                     % endif
                 </td>

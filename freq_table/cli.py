@@ -1,11 +1,11 @@
 import logging
 import os
+import sys
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 
 import pkg_resources
 import yaml
 
-from . import __version__
 from .generator import Generator
 from .records import RecordStore
 from .scraper import Scraper
@@ -21,13 +21,27 @@ Make printable tables from http://radioscanner.ru frequency db.
 
 With no record sources provided, the program tries to load the default file
 (`records.yaml`) falling back to scraping if that's not present.
+
+All options that take file paths resolve them relative to the build directory.
+The special value "-" denotes stdin/stdout, depending on the context.
 """
 
-logger = logging.getLogger(__name__)
+
+class CliError(Exception):
+    def __init__(self, missing_template=False):
+        self.missing_template = missing_template
+        super().__init__()
+
+    def __str__(self):
+        msg = str(self.__cause__ or '')
+        if self.missing_template:
+            msg += '\nLooks like one of the necessary build files is missing!'\
+                   '\nTry running `freq_table --init` first'
+        return msg
 
 
 class Cli:
-    def __init__(self):
+    def __init__(self, version=''):
         self.store = RecordStore()
         parser = self.parser = ArgumentParser(
             prog='freq_table', description=DESCRIPTION,
@@ -35,7 +49,7 @@ class Cli:
             epilog='Logs are controlled by the env variable LOGLEVEL')
 
         parser.add_argument(
-            '-V', '--version', action='version', version=f'%(prog)s {__version__}')
+            '-V', '--version', action='version', version=f'%(prog)s {version}')
 
         parser.add_argument(
             '-i', '--init', action='store_true',
@@ -71,8 +85,18 @@ class Cli:
         parser.add_argument(
             '-b', '--build-dir', default=DEFAULT_BUILD, metavar='BUILD_DIR',
             help='directory containing config and template files;'
-            ' all file paths are resolved relative to this directory'
             ' (defaults to the current working directory)')
+
+    def main(self):
+        try:
+            self.parse_args()
+            self.do_work()
+            print('Done.')
+        except Exception as e:
+            if 'DEBUG' in os.environ:
+                raise e
+            else:
+                self.parser.error(e)
 
     def parse_args(self, args=None):
         args = self.args = self.parser.parse_args(args)
@@ -83,12 +107,12 @@ class Cli:
         if not args.load and not args.scrape:
             if os.path.isfile(self.get_path(DEFAULT_RECORDS)):
                 args.load = (DEFAULT_RECORDS,)
-                logger.warning('Using default records file.')
+                print('Using default records file.')
             else:
                 args.scrape = True
-                logger.warning('No records file found, will scrape the web.')
+                print('No records file found, will scrape the web.')
 
-    def main(self):
+    def do_work(self):
         if self.args.init:
             self.init()
             return
@@ -110,9 +134,9 @@ class Cli:
         if self.store.count() == 0:
             self.parser.error('No records to process. Aborting.')
 
-        logger.warning('Sorting records...')
+        print('Sorting records...')
         records = self.store.get_sorted_by_freq()
-        logger.warning('Sorted %i records.', len(records))
+        print(f'Sorted {len(records)} records.')
 
         if self.args.dump:
             self.dump_records(records)
@@ -121,32 +145,46 @@ class Cli:
         if self.args.gen_html:
             self.gen_html(records)
 
-        logger.warning('Done.')
-
     def get_path(self, path):
         return os.path.join(self.args.build_dir, path)
 
-    def open_file(self, path, *args, tmpl=False, **kwargs):
-        try:
-            return open(self.get_path(path), *args, **kwargs, encoding='utf-8')
-        except OSError as e:
-            msg = '\nLooks like one of the necessary build files is missing!'\
-                  '\nTry running `freq_table --init` first'
-            self.parser.error(f'{e}{msg if tmpl else ""}')
+    def open_file(self, path, mode='r', encoding='utf-8'):
+        # copy stdin/stdout, so it's safe to close
+        if path == '-':
+            if 'w' in mode:
+                fd = os.dup(sys.stdout.fileno())
+                path = '<stdout>'
+            elif 'r' in mode:
+                fd = os.dup(sys.stdin.fileno())
+                path = '<stdin>'
+            else:
+                raise AssertionError(f'Invalid file open mode {mode}')
+
+            f = open(fd, mode, encoding=encoding)
+
+        else:
+            try:
+                f = open(self.get_path(path), mode, encoding=encoding)
+            except FileNotFoundError as e:
+                is_template = path in (CONFIG_FILE, TEMPLATE_FILE)
+                raise CliError(is_template) from e
+
+        f.name_ = path  # just `name` isn't writable :(
+        return f
 
     def copy_template(self, name):
         if os.path.isfile(self.get_path(name)):
-            logger.warning('File %s already exists, keeping it', name)
+            print(f'File {name} already exists, keeping it')
             return False
 
         res = pkg_resources.resource_string(__name__, f'templates/{name}')
-        with self.open_file(name, 'w') as fh:
-            logger.warning('Copying %s', name)
-            fh.write(res.decode('utf-8'))
+        with self.open_file(name, 'wb', encoding=None) as fh:
+            print(f'Copying {name}')
+            fh.write(res)
         return True
 
     def init(self):
-        logger.warning('Initializing templates...')
+        print('Initializing templates...')
 
         self.copy_template('config.yaml')
 
@@ -154,17 +192,17 @@ class Cli:
             self.copy_template('style.css')
 
     def load_config(self):
-        with self.open_file(CONFIG_FILE, tmpl=True) as fh:
-            logger.warning('Loading config from %s...', fh.name)
+        with self.open_file(CONFIG_FILE) as fh:
+            print(f'Loading config from {fh.name_}...')
             self.config = yaml.safe_load(fh)
 
     def add_records(self, records, from_):
-        logger.warning('Adding records from %s...', from_)
+        print(f'Adding records from {from_}...')
         cnt = 0
         for r in records:
             self.store.add(r)
             cnt += 1
-        logger.warning('Added %i records.', cnt)
+        print(f'Added {cnt} records.')
 
     def scrape_records(self):
         scraper = Scraper(self.config['scraper'])
@@ -174,20 +212,20 @@ class Cli:
     def load_files(self):
         for file in self.args.load:
             with self.open_file(file) as fh:
-                self.add_records(yaml.safe_load(fh), from_=fh.name)
+                self.add_records(yaml.safe_load(fh), from_=fh.name_)
 
     def dump_records(self, records):
         with self.open_file(self.args.dump, 'w') as fh:
-            logger.warning('Writing records to %s...', fh.name)
+            print(f'Writing records to {fh.name_}...')
             yaml.safe_dump(records, fh, allow_unicode=True)
 
     def gen_html(self, records):
-        with self.open_file(TEMPLATE_FILE, tmpl=True) as fh:
-            logger.warning('Reading template from %s...', fh.name)
+        with self.open_file(TEMPLATE_FILE) as fh:
+            print(f'Reading template from {fh.name_}...')
             tmpl = fh.read()
 
         with self.open_file(self.args.output, 'w') as fh:
-            logger.warning('Generating html at %s...', fh.name)
+            print(f'Generating html at {fh.name_}...')
             generator = Generator(self.config['generator'])
             html = generator.generate_html(tmpl, records)
             fh.write(html)
