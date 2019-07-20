@@ -1,5 +1,8 @@
 # freq_table
 
+[![PyPI version](https://img.shields.io/pypi/v/freq_table.svg)](https://pypi.org/project/freq_table/)
+[![PyPI pyversion](https://img.shields.io/pypi/pyversions/freq_table.svg)](https://pypi.org/project/freq_table/)
+
 Мощный инструмент для создания красиво оформленных таблиц радиочастот.\
 Проект имеет большой потенциал, помощь в развитии приветствуется.
 
