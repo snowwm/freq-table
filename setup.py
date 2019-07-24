@@ -6,14 +6,20 @@ here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the README file
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:
-    long_description = f.read()
+    readme = f.read()
+    readme = readme.replace(
+        '(samples/preview.png)',
+        '(https://github.com/snowwm/freq-table/raw/master/samples/preview.png)', 1)
+    readme = readme.replace(
+        '(samples/output.pdf)',
+        '(https://github.com/snowwm/freq-table/raw/master/samples/output.pdf)', 1)
 
 setup(
     name='freq_table',
-    version='0.2.1',
+    version='0.2.2',
     license='MIT',
     description='Make printable tables using http://radioscanner.ru frequency db',
-    long_description=long_description,
+    long_description=readme,
     long_description_content_type='text/markdown',
 
     url='https://github.com/snowwm/freq_table',

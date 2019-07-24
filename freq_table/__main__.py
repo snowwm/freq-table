@@ -5,11 +5,11 @@ from . import __version__
 from .cli import Cli
 
 # TODO: Roadmap:
-# - revamp updating
+# - revamp the CLI
 # - add merging + indicate conflicts
+# - add multiple layout presets
 # - add tests
 # - improve page layout (a tricky task)
-# - add multiple layout presets
 # - automate making pdf
 # - add more output customization (custom tables, namespaces)
 
