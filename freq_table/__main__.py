@@ -9,6 +9,7 @@ from .cli import Cli
 # - add merging + indicate conflicts
 # - add multiple layout presets
 # - add tests
+# - move docs to wiki
 # - improve page layout (a tricky task)
 # - automate making pdf
 # - add more output customization (custom tables, namespaces)

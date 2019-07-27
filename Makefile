@@ -16,7 +16,7 @@ upload:
 
 tag:
 	git tag "v$(ver)" -m "Version $(ver)"
-	git push --tags
+	git push --follow-tags
 
 build: clean
 	python setup.py --quiet sdist bdist_wheel
